@@ -15,6 +15,7 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.lifecycle.Startables;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -79,8 +80,8 @@ public class ProducerApplicationTests {
 
         @Bean
         @DependsOn("kafkaContainer")
-        GenericContainer<?> schemaRegistry() {
-            return new GenericContainer<>("confluentinc/cp-schema-registry:7.4.0")
+        GenericContainer<?> controlCenter() {
+            GenericContainer<?> schemaRegistry = new GenericContainer<>("confluentinc/cp-schema-registry:7.4.0")
                     .withExposedPorts(8085)
                     .withNetworkAliases("schemaregistry")
                     .withNetwork(network)
@@ -90,31 +91,8 @@ public class ProducerApplicationTests {
                     .withEnv("SCHEMA_REGISTRY_KAFKASTORE_SECURITY_PROTOCOL", "PLAINTEXT")
                     .waitingFor(Wait.forHttp("/subjects"))
                     .withStartupTimeout(Duration.of(120, ChronoUnit.SECONDS));
-        }
 
-        @Bean
-        @DependsOn("kafkaContainer")
-        GenericContainer<?> controlCenter() {
-            return new GenericContainer<>("confluentinc/cp-enterprise-control-center:7.4.0")
-                    .withExposedPorts(9021, 9022)
-                    .withNetwork(network)
-                    .withEnv("CONTROL_CENTER_BOOTSTRAP_SERVERS", "PLAINTEXT://kafka:19092")
-                    .withEnv("CONTROL_CENTER_REPLICATION_FACTOR", "1")
-                    .withEnv("CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS", "1")
-                    .withEnv("CONTROL_CENTER_SCHEMA_REGISTRY_SR1_URL", "http://schemaregistry:8085")
-                    .withEnv("CONTROL_CENTER_SCHEMA_REGISTRY_URL", "http://schemaregistry:8085")
-                    .withEnv("CONTROL_CENTER_KSQL_KSQLDB1_URL", "http://ksqldb:8088")
-                    .withEnv("CONTROL_CENTER_KSQL_KSQLDB1_ADVERTISED_URL", "http://ksqldb:8088")
-                    .withEnv("CONTROL_CENTER_CONNECT_CONNECT1_CLUSTER", "http://connect:8083")
-                    .waitingFor(Wait.forHttp("/clusters").forPort(9021).allowInsecure())
-                    .withStartupTimeout(Duration.of(120, ChronoUnit.SECONDS))
-                    .withLabel("com.testcontainers.desktop.service", "cp-control-center");
-        }
-
-        @Bean
-        @DependsOn("kafkaContainer")
-        GenericContainer<?> ksqlDb() {
-            return new GenericContainer<>("confluentinc/cp-ksqldb-server:7.4.0")
+            GenericContainer<?> ksqldb = new GenericContainer<>("confluentinc/cp-ksqldb-server:7.4.0")
                     .withExposedPorts(8088)
                     .withNetwork(network)
                     .withNetworkAliases("ksqldb")
@@ -122,12 +100,8 @@ public class ProducerApplicationTests {
                     .withEnv("KSQL_KSQL_SERVICE_ID", "ksqldb-server")
                     .withEnv("KSQL_BOOTSTRAP_SERVERS", "kafka:19092")
                     .withEnv("KSQL_KSQL_SCHEMA_REGISTRY_URL", "http://schemaregistry:8085");
-        }
 
-        @Bean
-        @DependsOn("kafkaContainer")
-        GenericContainer<?> connect() {
-            return new GenericContainer("confluentinc/cp-server-connect:7.4.0") {
+            GenericContainer<?> connect = new GenericContainer("confluentinc/cp-server-connect:7.4.0") {
                 @Override
                 protected void containerIsStarting(InspectContainerResponse containerInfo) {
                     try {
@@ -159,6 +133,32 @@ public class ProducerApplicationTests {
                     .withEnv("CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR", "1")
                     .withEnv("CONNECT_STATUS_STORAGE_REPLICATION_FACTOR", "1")
                     .withEnv("CONNECT_PRODUCER_CLIENT_ID", "connect-worker-producer");
+
+            GenericContainer<?> restProxy = new GenericContainer<>("confluentinc/cp-kafka-rest:7.4.0")
+                    .withExposedPorts(8082)
+                    .withNetwork(network)
+                    .withEnv("KAFKA_REST_HOST_NAME", "rest-proxy")
+                    .withEnv("KAFKA_REST_LISTENERS", "http://0.0.0.0:8082")
+                    .withEnv("KAFKA_REST_BOOTSTRAP_SERVERS", "kafka:19092")
+                    .withEnv("KAFKA_REST_SCHEMA_REGISTRY_URL", "http://schemaregistry:8085")
+                    .withLabel("com.testcontainers.desktop.service", "restproxy");
+
+            Startables.deepStart(schemaRegistry, ksqldb, connect, restProxy).join();
+
+            return new GenericContainer<>("confluentinc/cp-enterprise-control-center:7.4.0")
+                    .withExposedPorts(9021, 9022)
+                    .withNetwork(network)
+                    .withEnv("CONTROL_CENTER_BOOTSTRAP_SERVERS", "PLAINTEXT://kafka:19092")
+                    .withEnv("CONTROL_CENTER_REPLICATION_FACTOR", "1")
+                    .withEnv("CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS", "1")
+                    .withEnv("CONTROL_CENTER_SCHEMA_REGISTRY_SR1_URL", "http://schemaregistry:8085")
+                    .withEnv("CONTROL_CENTER_SCHEMA_REGISTRY_URL", "http://schemaregistry:8085")
+                    .withEnv("CONTROL_CENTER_KSQL_KSQLDB1_URL", "http://ksqldb:8088")
+                    .withEnv("CONTROL_CENTER_KSQL_KSQLDB1_ADVERTISED_URL", "http://ksqldb:8088")
+                    .withEnv("CONTROL_CENTER_CONNECT_CONNECT1_CLUSTER", "http://connect:8083")
+                    .waitingFor(Wait.forHttp("/clusters").forPort(9021).allowInsecure())
+                    .withStartupTimeout(Duration.of(120, ChronoUnit.SECONDS))
+                    .withLabel("com.testcontainers.desktop.service", "cp-control-center");
         }
 
     }
