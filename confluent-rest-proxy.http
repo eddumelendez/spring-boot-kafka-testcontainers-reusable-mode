@@ -1,0 +1,45 @@
+POST http://localhost:8082/topics/purchases
+Content-Type: application/vnd.kafka.json.v2+json
+Accept: application/vnd.kafka.v2+json
+
+{
+  "records": [
+    {
+      "key": "jsmith",
+      "value": "alarm clock"
+    },
+    {
+      "key": "htanaka",
+      "value": "batteries"
+    },
+    {
+      "key": "awalther",
+      "value": "bookshelves"
+    }
+  ]
+}
+
+###
+POST http://localhost:8082/consumers/cg1
+Content-Type: application/vnd.kafka.json.v2+json
+
+{
+  "name": "ci1",
+  "format": "json",
+  "auto.offset.reset": "earliest"
+}
+
+###
+POST http://localhost:8082/consumers/cg1/instances/ci1/subscription
+Content-Type: application/vnd.kafka.json.v2+json
+
+{
+  "topics": [
+    "purchases"
+  ]
+}
+
+###
+GET http://localhost:8082/consumers/cg1/instances/ci1/records
+Accept: application/vnd.kafka.json.v2+json
+
