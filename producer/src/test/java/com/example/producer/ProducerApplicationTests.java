@@ -1,6 +1,5 @@
 package com.example.producer;
 
-import com.example.container.KafkaRaftWithExtraListenersContainer;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -16,6 +15,7 @@ import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.lifecycle.Startables;
+import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -70,11 +70,10 @@ public class ProducerApplicationTests {
         @ServiceConnection
         @RestartScope
         KafkaContainer kafkaContainer() {
-            return new KafkaRaftWithExtraListenersContainer("confluentinc/cp-kafka:7.4.0")
-                    .withAdditionalListener(() -> "kafka:19092")
-                    .withKraft()
+            return new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0"))
+                    .withListener(() -> "kafka:19092")
+                    .withEmbeddedZookeeper()
                     .withNetwork(network)
-                    .withNetworkAliases("kafka")
                     .withReuse(true);
         }
 

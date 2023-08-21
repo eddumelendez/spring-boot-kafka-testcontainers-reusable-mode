@@ -1,6 +1,5 @@
 package com.example.consumer;
 
-import com.example.container.KafkaRaftWithExtraListenersContainer;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.springframework.boot.SpringApplication;
@@ -11,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
+import org.testcontainers.utility.DockerImageName;
 
 import java.util.List;
 
@@ -62,11 +62,10 @@ public class ConsumerApplicationTests {
         @ServiceConnection
         @RestartScope
         KafkaContainer kafkaContainer() {
-            return new KafkaRaftWithExtraListenersContainer("confluentinc/cp-kafka:7.4.0")
-                    .withAdditionalListener(() -> "kafka:19092")
-                    .withKraft()
+            return new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0"))
+                    .withListener(() -> "kafka:19092")
+                    .withEmbeddedZookeeper()
                     .withNetwork(network)
-                    .withNetworkAliases("kafka")
                     .withReuse(true);
         }
 
