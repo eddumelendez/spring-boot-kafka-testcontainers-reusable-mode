@@ -11,11 +11,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.DependsOn;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.kafka.ConfluentKafkaContainer;
 import org.testcontainers.lifecycle.Startables;
-import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -69,16 +68,15 @@ public class ProducerApplicationTests {
         @Bean
         @ServiceConnection
         @RestartScope
-        KafkaContainer kafkaContainer() {
-            return new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0"))
-                    .withListener(() -> "kafka:19092")
-                    .withEmbeddedZookeeper()
+        ConfluentKafkaContainer kafkaContainer() {
+            return new ConfluentKafkaContainer("confluentinc/cp-kafka:7.4.0")
+                    .withListener("kafka:19092")
                     .withNetwork(network)
                     .withReuse(true);
         }
 
-//        @Bean
-//        @DependsOn("kafkaContainer")
+        @Bean
+        @DependsOn("kafkaContainer")
         GenericContainer<?> controlCenter() {
             GenericContainer<?> schemaRegistry = new GenericContainer<>("confluentinc/cp-schema-registry:7.4.0")
                     .withExposedPorts(8085)
