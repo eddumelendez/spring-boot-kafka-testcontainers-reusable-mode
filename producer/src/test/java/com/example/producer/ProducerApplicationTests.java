@@ -30,7 +30,7 @@ public class ProducerApplicationTests {
                 .run(args);
     }
 
-    @TestConfiguration
+    @TestConfiguration(proxyBeanMethods = false)
     static class ContainerConfiguration {
 
         private static final String KAFKA_NETWORK = "kafka-network";
@@ -77,8 +77,8 @@ public class ProducerApplicationTests {
                     .withReuse(true);
         }
 
-        @Bean
-        @DependsOn("kafkaContainer")
+//        @Bean
+//        @DependsOn("kafkaContainer")
         GenericContainer<?> controlCenter() {
             GenericContainer<?> schemaRegistry = new GenericContainer<>("confluentinc/cp-schema-registry:7.4.0")
                     .withExposedPorts(8085)

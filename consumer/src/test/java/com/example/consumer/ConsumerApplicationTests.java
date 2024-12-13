@@ -22,7 +22,7 @@ public class ConsumerApplicationTests {
                 .run(args);
     }
 
-    @TestConfiguration
+    @TestConfiguration(proxyBeanMethods = false)
     static class ContainerConfiguration {
 
         private static final String KAFKA_NETWORK = "kafka-network";
